@@ -1,3 +1,20 @@
+local OrionLib = nil
+local success, result = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+end)
+
+if success and result then
+    OrionLib = result
+else
+    OrionLib = {
+        MakeWindow = function()
+            return {
+                MakeTab = function() return {} end
+            }
+        end
+    }
+end
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,10 +31,8 @@ local Settings = {
     AutoHaki = false,
     NoClip = false,
     Fly = false,
-    AutoCollect = false,
     ESP = false,
     ESPType = "Fruits",
-    AutoPvP = false,
     AntiAFK = false,
     AutoStats = false,
     StatPriority = "Melee",
@@ -61,19 +76,23 @@ end
 
 local function UpdatePlayerData()
     pcall(function()
-        PlayerData.Level = Player.Data.Level.Value or 0
-        PlayerData.Beli = Player.Data.Beli.Value or 0
-        PlayerData.Fragments = Player.Data.Fragments.Value or 0
-        PlayerData.StatPoints = Player.Data.StatPoints.Value or 0
+        if Player.Data then
+            PlayerData.Level = Player.Data.Level and Player.Data.Level.Value or 0
+            PlayerData.Beli = Player.Data.Beli and Player.Data.Beli.Value or 0
+            PlayerData.Fragments = Player.Data.Fragments and Player.Data.Fragments.Value or 0
+            PlayerData.StatPoints = Player.Data.StatPoints and Player.Data.StatPoints.Value or 0
+        end
     end)
 end
 
 local function AutoDistributeStats()
     if not Settings.AutoStats then return end
     local statRemote = ReplicatedStorage:FindFirstChild("AddStat")
-    if statRemote and PlayerData.StatPoints > 0 then
+    if statRemote and PlayerData.StatPoints and PlayerData.StatPoints > 0 then
         for i = 1, PlayerData.StatPoints do
-            statRemote:FireServer(Settings.StatPriority)
+            pcall(function()
+                statRemote:FireServer(Settings.StatPriority)
+            end)
         end
     end
 end
@@ -82,14 +101,16 @@ local function EnableHaki()
     if not Settings.AutoHaki then return end
     local hakiRemote = ReplicatedStorage:FindFirstChild("EnableHaki")
     if hakiRemote then
-        hakiRemote:FireServer()
+        pcall(function()
+            hakiRemote:FireServer()
+        end)
     end
 end
 
 local ESPObjects = {}
 local function ClearESP()
     for _, obj in pairs(ESPObjects) do
-        if obj then obj:Destroy() end
+        if obj then pcall(function() obj:Destroy() end) end
     end
     ESPObjects = {}
 end
@@ -100,109 +121,124 @@ local function CreateESP()
         return 
     end
     ClearESP()
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            local name = obj.Name:lower()
-            local shouldESP = false
-            local espColor = Color3.fromRGB(255, 100, 100)
-            local espText = ""
-            if Settings.ESPType == "Fruits" and (name:find("fruit") or name:find("apple")) then
-                shouldESP = true
-                espColor = Color3.fromRGB(255, 100, 255)
-                espText = "FRUIT"
-            elseif Settings.ESPType == "Chests" and (name:find("chest") or name:find("box")) then
-                shouldESP = true
-                espColor = Color3.fromRGB(255, 215, 0)
-                espText = "CHEST"
-            elseif Settings.ESPType == "Enemies" and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
-                shouldESP = true
-                espColor = Color3.fromRGB(255, 50, 50)
-                espText = obj.Name
-            end
-            if shouldESP and obj:FindFirstChild("HumanoidRootPart") then
-                local highlight = Instance.new("Highlight")
-                highlight.Parent = obj
-                highlight.FillColor = espColor
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.5
-                table.insert(ESPObjects, highlight)
-                local billboard = Instance.new("BillboardGui")
-                billboard.Parent = obj.HumanoidRootPart
-                billboard.Size = UDim2.new(0, 100, 0, 30)
-                billboard.AlwaysOnTop = true
-                billboard.StudsOffset = Vector3.new(0, 2, 0)
-                local label = Instance.new("TextLabel")
-                label.Parent = billboard
-                label.Size = UDim2.new(1, 0, 1, 0)
-                label.BackgroundTransparency = 1
-                label.Text = espText
-                label.TextColor3 = espColor
-                label.TextScaled = true
-                label.Font = Enum.Font.GothamBold
-                table.insert(ESPObjects, billboard)
+    pcall(function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("HumanoidRootPart") then
+                local name = obj.Name:lower()
+                local shouldESP = false
+                local espColor = Color3.fromRGB(255, 100, 100)
+                local espText = ""
+                
+                if Settings.ESPType == "Fruits" and (name:find("fruit") or name:find("apple")) then
+                    shouldESP = true
+                    espColor = Color3.fromRGB(255, 100, 255)
+                    espText = "🍎"
+                elseif Settings.ESPType == "Chests" and (name:find("chest") or name:find("box")) then
+                    shouldESP = true
+                    espColor = Color3.fromRGB(255, 215, 0)
+                    espText = "🎁"
+                elseif Settings.ESPType == "Enemies" and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
+                    local humanoid = obj.Humanoid
+                    if humanoid and humanoid.Health > 0 then
+                        shouldESP = true
+                        espColor = Color3.fromRGB(255, 50, 50)
+                        espText = "👾"
+                    end
+                end
+                
+                if shouldESP then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Parent = obj
+                    highlight.FillColor = espColor
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    table.insert(ESPObjects, highlight)
+                    
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Parent = obj.HumanoidRootPart
+                    billboard.Size = UDim2.new(0, 50, 0, 30)
+                    billboard.AlwaysOnTop = true
+                    billboard.StudsOffset = Vector3.new(0, 2, 0)
+                    
+                    local label = Instance.new("TextLabel")
+                    label.Parent = billboard
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = espText
+                    label.TextColor3 = espColor
+                    label.TextSize = 20
+                    label.Font = Enum.Font.GothamBold
+                    table.insert(ESPObjects, billboard)
+                end
             end
         end
-    end
+    end)
 end
 
 local FarmLoopRunning = false
 local function FindNearestEnemy()
     local nearest = nil
     local shortestDist = Settings.FarmRange
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
-            local humanoid = obj.Humanoid
-            if humanoid.Health > 0 then
-                local root = obj:FindFirstChild("HumanoidRootPart")
-                if root then
-                    local dist = (RootPart.Position - root.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        nearest = obj
+    pcall(function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
+                local humanoid = obj.Humanoid
+                if humanoid and humanoid.Health and humanoid.Health > 0 then
+                    local root = obj:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local dist = (RootPart.Position - root.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            nearest = obj
+                        end
                     end
                 end
             end
         end
-    end
+    end)
     return nearest
 end
 
 local function AttackEnemy(enemy)
     if not enemy then return end
-    local attackRemote = ReplicatedStorage:FindFirstChild("AttackEntity")
-    if attackRemote then
-        attackRemote:FireServer(enemy)
-    end
-    local tool = Character:FindFirstChildOfClass("Tool")
-    if tool then
-        tool:Activate()
-    end
+    pcall(function()
+        local attackRemote = ReplicatedStorage:FindFirstChild("AttackEntity")
+        if attackRemote then
+            attackRemote:FireServer(enemy)
+        end
+        local tool = Character:FindFirstChildOfClass("Tool")
+        if tool then
+            tool:Activate()
+        end
+    end)
 end
 
 local function AutoFarmLoop()
     if FarmLoopRunning then return end
     FarmLoopRunning = true
     while Settings.AutoFarm do
-        if not Character or not Humanoid or Humanoid.Health <= 0 then
-            wait(2)
-            continue
-        end
-        UpdatePlayerData()
-        AutoDistributeStats()
-        if Settings.AutoHaki then EnableHaki() end
-        local enemy = FindNearestEnemy()
-        if enemy then
-            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-            if enemyRoot then
-                local dist = (RootPart.Position - enemyRoot.Position).Magnitude
-                if dist > 15 then
-                    RootPart.CFrame = enemyRoot.CFrame + Vector3.new(0, 3, 0)
-                else
-                    AttackEnemy(enemy)
+        pcall(function()
+            if not Character or not Humanoid or Humanoid.Health <= 0 then
+                wait(2)
+                return
+            end
+            UpdatePlayerData()
+            AutoDistributeStats()
+            if Settings.AutoHaki then EnableHaki() end
+            local enemy = FindNearestEnemy()
+            if enemy then
+                local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                if enemyRoot then
+                    local dist = (RootPart.Position - enemyRoot.Position).Magnitude
+                    if dist > 15 then
+                        RootPart.CFrame = enemyRoot.CFrame + Vector3.new(0, 3, 0)
+                    else
+                        AttackEnemy(enemy)
+                    end
                 end
             end
-        end
-        if Settings.ESP then CreateESP() end
+            if Settings.ESP then CreateESP() end
+        end)
         wait(0.1)
     end
     FarmLoopRunning = false
@@ -211,11 +247,13 @@ end
 local BodyVelocity = nil
 local function ToggleNoClip()
     Settings.NoClip = not Settings.NoClip
-    for _, part in ipairs(Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not Settings.NoClip
+    pcall(function()
+        for _, part in ipairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not Settings.NoClip
+            end
         end
-    end
+    end)
 end
 
 local function ToggleFly()
@@ -228,35 +266,38 @@ local function ToggleFly()
         local bg = Instance.new("BodyGyro")
         bg.MaxTorque = Vector3.new(100000, 100000, 100000)
         bg.Parent = RootPart
-        UserInputService.InputBegan:Connect(function(input)
-            if Settings.Fly then
-                if input.KeyCode == Enum.KeyCode.Space then
-                    BodyVelocity.Velocity = Vector3.new(0, 100, 0)
-                elseif input.KeyCode == Enum.KeyCode.LeftControl then
-                    BodyVelocity.Velocity = Vector3.new(0, -100, 0)
-                elseif input.KeyCode == Enum.KeyCode.W then
-                    BodyVelocity.Velocity = RootPart.CFrame.LookVector * 100
-                elseif input.KeyCode == Enum.KeyCode.S then
-                    BodyVelocity.Velocity = -RootPart.CFrame.LookVector * 100
-                elseif input.KeyCode == Enum.KeyCode.A then
-                    BodyVelocity.Velocity = -RootPart.CFrame.RightVector * 100
-                elseif input.KeyCode == Enum.KeyCode.D then
-                    BodyVelocity.Velocity = RootPart.CFrame.RightVector * 100
-                end
-            end
-        end)
     else
         if BodyVelocity then BodyVelocity:Destroy() end
     end
 end
 
+UserInputService.InputBegan:Connect(function(input)
+    if Settings.Fly and BodyVelocity then
+        if input.KeyCode == Enum.KeyCode.Space then
+            BodyVelocity.Velocity = Vector3.new(0, 100, 0)
+        elseif input.KeyCode == Enum.KeyCode.LeftControl then
+            BodyVelocity.Velocity = Vector3.new(0, -100, 0)
+        elseif input.KeyCode == Enum.KeyCode.W then
+            BodyVelocity.Velocity = RootPart.CFrame.LookVector * 100
+        elseif input.KeyCode == Enum.KeyCode.S then
+            BodyVelocity.Velocity = -RootPart.CFrame.LookVector * 100
+        elseif input.KeyCode == Enum.KeyCode.A then
+            BodyVelocity.Velocity = -RootPart.CFrame.RightVector * 100
+        elseif input.KeyCode == Enum.KeyCode.D then
+            BodyVelocity.Velocity = RootPart.CFrame.RightVector * 100
+        end
+    end
+end)
+
 local function AntiAFK()
     if not Settings.AntiAFK then return end
-    local vu = game:GetService("VirtualUser")
-    game:GetService("Players").LocalPlayer.Idled:connect(function()
-        vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
-        wait(1)
-        vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    pcall(function()
+        local vu = game:GetService("VirtualUser")
+        game:GetService("Players").LocalPlayer.Idled:connect(function()
+            vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+            wait(1)
+            vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+        end)
     end)
 end
 
@@ -269,9 +310,8 @@ local Window = OrionLib:MakeWindow({
 })
 
 local AutoFarmTab = Window:MakeTab({
-    Name = "Auto Farm",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
+    Name = "Farm",
+    Icon = "rbxassetid://3926305904"
 })
 
 AutoFarmTab:AddToggle({
@@ -297,8 +337,7 @@ AutoFarmTab:AddSlider({
 
 local TeleportsTab = Window:MakeTab({
     Name = "Teleports",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
+    Icon = "rbxassetid://3926305904"
 })
 
 TeleportsTab:AddDropdown({
@@ -320,7 +359,7 @@ TeleportsTab:AddButton({
 TeleportsTab:AddButton({
     Name = "Melhor Ilha",
     Callback = function()
-        local playerLevel = Player.Data.Level.Value or 0
+        local playerLevel = Player.Data and Player.Data.Level and Player.Data.Level.Value or 0
         local bestIsland = nil
         for _, island in ipairs(Islands) do
             if playerLevel >= island.Level then
@@ -335,8 +374,7 @@ TeleportsTab:AddButton({
 
 local CombatTab = Window:MakeTab({
     Name = "Combate",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
+    Icon = "rbxassetid://3926305904"
 })
 
 CombatTab:AddToggle({
@@ -364,17 +402,8 @@ CombatTab:AddToggle({
 })
 
 local UtilitiesTab = Window:MakeTab({
-    Name = "Utilidades",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
-})
-
-UtilitiesTab:AddToggle({
-    Name = "Auto Collect",
-    Default = false,
-    Callback = function(Value)
-        Settings.AutoCollect = Value
-    end
+    Name = "Util",
+    Icon = "rbxassetid://3926305904"
 })
 
 UtilitiesTab:AddToggle({
@@ -403,9 +432,8 @@ UtilitiesTab:AddDropdown({
 })
 
 local SecurityTab = Window:MakeTab({
-    Name = "Segurança",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
+    Name = "Seg",
+    Icon = "rbxassetid://3926305904"
 })
 
 SecurityTab:AddToggle({
@@ -421,8 +449,7 @@ SecurityTab:AddToggle({
 
 local StatsTab = Window:MakeTab({
     Name = "Stats",
-    Icon = "rbxassetid://3926305904",
-    PremiumOnly = false
+    Icon = "rbxassetid://3926305904"
 })
 
 StatsTab:AddToggle({
