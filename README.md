@@ -1,140 +1,456 @@
---[[
-🔥 AUTO FARM PRIMEIRO MAR | INIO HUB v2‑6
-✅ Funciona Nível 1 → 700
-✅ Aceita/entrega missões automaticamente
-✅ Teleporta até NPC e Inimigos
-✅ Auto‑ataca + Auto‑cura
-✅ Tecla INSERT: Abrir/Fechar
-✅ Arrável | Atualizado 2026
-]]
-
--- ==============================================
--- SERVIÇOS E VARIÁVEIS
--- ==============================================
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local HRP = nil; LocalPlayer.CharacterAdded:Connect(function(c) HRP = c:WaitForChild("HumanoidRootPart") end)
+local Workspace = game:GetService("Workspace")
 
--- CONTROLES
-local AutoFarmAtivado = false
-local MeuNivel, NomeMissao, NomeInimigo, PosMissao, PosInimigo = 0, "", "", nil, nil
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- DETECTA SE ESTÁ NO PRIMEIRO MAR
-local PrimeiroMar = game.PlaceId == 2753915549
-if not PrimeiroMar then
-    warn("❌ Você NÃO está no Primeiro Mar! Esse script só funciona lá.")
-end
-
--- ==============================================
--- SISTEMA DE MISSÕES DO 1º MAR (nível por nível)
--- ==============================================
-local TabelaMissoes = {
-    {min=1, max=9, npc="Bandit Quest", inimigo="Bandit", cfnpc=CFrame.new(1059.37,15.45,1550.42,0.94,0,-0.342,0,1,0,0.342,0,0.94), cfmon=CFrame.new(1045.96,27.00,1560.82)},
-    {min=10, max=14, npc="Monkey Quest", inimigo="Monkey", cfnpc=CFrame.new(-1598.09,35.55,153.38,0,0,1,0,1,0,-1,0,0), cfmon=CFrame.new(-1448.52,67.85,11.47)},
-    {min=15, max=29, npc="Gorilla Quest", inimigo="Gorilla", cfnpc=CFrame.new(-1598.09,35.55,153.38,0,0,1,0,1,0,-1,0,0), cfmon=CFrame.new(-1129.88,40.46,-525.42)},
-    {min=30, max=39, npc="Pirate Quest", inimigo="Pirate", cfnpc=CFrame.new(-1141.07,4.10,3831.55,0.966,0,-0.259,0,1,0,0.259,0,0.966), cfmon=CFrame.new(-1103.51,13.75,3896.09)},
-    {min=40, max=59, npc="Brute Quest", inimigo="Brute", cfnpc=CFrame.new(-1141.07,4.10,3831.55,0.966,0,-0.259,0,1,0,0.259,0,0.966), cfmon=CFrame.new(-1140.08,14.81,4322.92)},
-    {min=60, max=74, npc="Desert Bandit Quest", inimigo="Desert Bandit", cfnpc=CFrame.new(894.49,5.14,4392.43,0.819,0,-0.574,0,1,0,0.574,0,0.819), cfmon=CFrame.new(924.80,6.45,4481.59)},
-    {min=75, max=89, npc="Desert Officer Quest", inimigo="Desert Officer", cfnpc=CFrame.new(894.49,5.14,4392.43,0.819,0,-0.574,0,1,0,0.574,0,0.819), cfmon=CFrame.new(1608.28,8.61,4371.01)},
-    {min=90, max=99, npc="Snow Bandit Quest", inimigo="Snow Bandit", cfnpc=CFrame.new(1389.74,88.15,-1298.91,-0.342,0,0.940,0,1,0,-0.940,0,-0.342), cfmon=CFrame.new(1354.35,87.27,-1393.95)},
-    {min=100, max=119, npc="Snowman Quest", inimigo="Snowman", cfnpc=CFrame.new(1389.74,88.15,-1298.91,-0.342,0,0.940,0,1,0,-0.940,0,-0.342), cfmon=CFrame.new(1201.64,144.58,-1550.07)},
-    {min=120, max=149, npc="Marine Quest 2", inimigo="Chief Petty Officer", cfnpc=CFrame.new(-5039.59,27.35,4324.68,0,0,-1,0,1,0,1,0,0), cfmon=CFrame.new(-4881.23,22.65,4273.75)},
-    {min=150, max=174, npc="Sky Bandit Quest", inimigo="Sky Bandit", cfnpc=CFrame.new(-4839.53,716.37,-2619.44,0.866,0,0.500,0,1,0,-0.500,0,0.866), cfmon=CFrame.new(-4953.21,295.74,-2899.23)},
-    {min=175, max=189, npc="Dark Master Quest", inimigo="Dark Master", cfnpc=CFrame.new(-4839.53,716.37,-2619.44,0.866,0,0.500,0,1,0,-0.500,0,0.866), cfmon=CFrame.new(-5259.84,391.40,-2229.04)},
-    {min=190, max=209, npc="Prisoner Quest", inimigo="Prisoner", cfnpc=CFrame.new(5308.93,1.66,475.12,-0.089,-0,-0.996,1,1,-0,0.996,-0,-0.089), cfmon=CFrame.new(5098.97,-0.32,474.24)},
-    {min=210, max=249, npc="Dangerous Prisoner Quest", inimigo="Dangerous Prisoner", cfnpc=CFrame.new(5308.93,1.66,475.12,-0.089,-0,-0.996,1,1,-0,0.996,-0,-0.089), cfmon=CFrame.new(5654.56,15.63,866.30)},
-    {min=250, max=274, npc="Toga Warrior Quest", inimigo="Toga Warrior", cfnpc=CFrame.new(-1580.05,6.35,-2740.67,-0.515,0,-0.857,0,1,0,0.857,0,-0.515), cfmon=CFrame.new(-1820.21,51.68,-2740.67)},
-    {min=275, max=299, npc="Gladiator Quest", inimigo="Gladiator", cfnpc=CFrame.new(-1580.05,6.35,-2740.67,-0.515,0,-0.857,0,1,0,0.857,0,-0.515), cfmon=CFrame.new(-1292.84,56.38,-3339.03)},
-    {min=300, max=349, npc="Military Soldier Quest", inimigo="Military Soldier", cfnpc=CFrame.new(-5313.37,10.95,8515.29,-0.5,0,-0.866,0,1,0,0.866,0,-0.5), cfmon=CFrame.new(-5120.43,12.33,8420.77)},
-    {min=350, max=399, npc="Wysper Quest", inimigo="Wysper", cfnpc=CFrame.new(-4671.14,420.23,-7643.81,0.707,0,-0.707,0,1,0,0.707,0,0.707), cfmon=CFrame.new(-4588.22,394.57,-7750.16)},
-    {min=400, max=449, npc="Marine Lieutenant Quest", inimigo="Marine Lieutenant", cfnpc=CFrame.new(7381.22,22.44,-6125.98,0,0,-1,0,1,0,1,0,0), cfmon=CFrame.new(7210.54,20.88,-6030.44)},
-    {min=450, max=499, npc="Marine Captain Quest", inimigo="Marine Captain", cfnpc=CFrame.new(7381.22,22.44,-6125.98,0,0,-1,0,1,0,1,0,0), cfmon=CFrame.new(7544.38,24.11,-6244.07)},
-    {min=500, max=549, npc="Zombie Quest", inimigo="Zombie", cfnpc=CFrame.new(-1163.74,11.03,-8740.63,0.866,0,-0.5,0,1,0,0.5,0,0.866), cfmon=CFrame.new(-1244.11,14.82,-8815.33)},
-    {min=550, max=599, npc="Vampire Quest", inimigo="Vampire", cfnpc=CFrame.new(-1163.74,11.03,-8740.63,0.866,0,-0.5,0,1,0,0.5,0,0.866), cfmon=CFrame.new(-1090.66,17.55,-8655.29)},
-    {min=600, max=649, npc="Magma Warrior Quest", inimigo="Magma Warrior", cfnpc=CFrame.new(-5299.81,34.71,9280.47,-0.342,0,-0.939,0,1,0,0.939,0,-0.342), cfmon=CFrame.new(-5411.77,40.32,9394.86)},
-    {min=650, max=700, npc="Magma Admiral Quest", inimigo="Magma Admiral", cfnpc=CFrame.new(-5299.81,34.71,9280.47,-0.342,0,-0.939,0,1,0,0.939,0,-0.342), cfmon=CFrame.new(-5158.33,29.14,9155.71)}
+local Settings = {
+    AutoFarm = false,
+    FarmRange = 25,
+    AutoHaki = false,
+    NoClip = false,
+    Fly = false,
+    AutoCollect = false,
+    ESP = false,
+    ESPType = "Fruits",
+    AutoPvP = false,
+    AntiAFK = false,
+    AutoStats = false,
+    StatPriority = "Melee",
 }
 
--- ==============================================
--- FUNÇÕES PRINCIPAIS
--- ==============================================
-local function AtualizarMissao()
-    if not PrimeiroMar then return end
-    MeuNivel = LocalPlayer.Data.Level.Value
-    for _, dados in ipairs(TabelaMissoes) do
-        if MeuNivel >= dados.min and MeuNivel <= dados.max then
-            NomeMissao = dados.npc
-            NomeInimigo = dados.inimigo
-            PosMissao = dados.cfnpc
-            PosInimigo = dados.cfmon
+local PlayerData = {
+    Level = 0,
+    Beli = 0,
+    Fragments = 0,
+    StatPoints = 0
+}
+
+local Islands = {
+    {Name = "Ilha Inicial", CFrame = CFrame.new(0, 0, 0), Level = 0},
+    {Name = "Selva", CFrame = CFrame.new(-1368.65405, 62.2030029, -56.9450073), Level = 15},
+    {Name = "Deserto", CFrame = CFrame.new(1216.34399, 32.1029968, 4366.68799), Level = 30},
+    {Name = "Vila Pirata", CFrame = CFrame.new(-1087.82104, 51.4420013, 4148.36816), Level = 60},
+    {Name = "Coliseu", CFrame = CFrame.new(-1650.755, 56.6549988, -3169.92798), Level = 90},
+    {Name = "Ilha da Fonte", CFrame = CFrame.new(5713.72314, 283.834991, 4392.41113), Level = 110},
+    {Name = "Base Marine", CFrame = CFrame.new(-4934.0708, 165.384995, 4324.09814), Level = 120},
+    {Name = "Ilha do Gelo", CFrame = CFrame.new(1254.02002, 26.5130005, -1464.75598), Level = 130},
+    {Name = "Prisão", CFrame = CFrame.new(5272.05713, 69.6170044, 747.97699), Level = 150},
+    {Name = "Ilha do Magma", CFrame = CFrame.new(-5574.34814, 118.358002, 8670.28027), Level = 175},
+    {Name = "Ilha do Céu", CFrame = CFrame.new(-5017.71484, 362.227997, -2391.30811), Level = 230},
+    {Name = "Reino das Rosas", CFrame = CFrame.new(-4908.09, 60.5, -4949.28), Level = 375},
+    {Name = "Cake Land", CFrame = CFrame.new(-6900, 60, -9800), Level = 650},
+}
+
+local function TeleportToIsland(islandName)
+    for _, island in ipairs(Islands) do
+        if island.Name == islandName then
+            pcall(function()
+                RootPart.CFrame = island.CFrame
+                wait(0.1)
+                RootPart.Velocity = Vector3.new(0, 0, 0)
+            end)
             break
         end
     end
-    AtualizarInfo()
 end
 
-local function PegarInimigoMaisProximo(nome)
-    local alvo, dist = nil, math.huge
-    for _, npc in ipairs(workspace:GetDescendants()) do
-        if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") and npc.Name == nome and npc.Humanoid.Health > 0 then
-            local d = (HRP.Position - npc.HumanoidRootPart.Position).Magnitude
-            if d < dist then alvo, dist = npc, d end
+local function UpdatePlayerData()
+    pcall(function()
+        PlayerData.Level = Player.Data.Level.Value or 0
+        PlayerData.Beli = Player.Data.Beli.Value or 0
+        PlayerData.Fragments = Player.Data.Fragments.Value or 0
+        PlayerData.StatPoints = Player.Data.StatPoints.Value or 0
+    end)
+end
+
+local function AutoDistributeStats()
+    if not Settings.AutoStats then return end
+    local statRemote = ReplicatedStorage:FindFirstChild("AddStat")
+    if statRemote and PlayerData.StatPoints > 0 then
+        for i = 1, PlayerData.StatPoints do
+            statRemote:FireServer(Settings.StatPriority)
         end
     end
-    return alvo
 end
 
-local function AtacarAlvo(alvo)
-    if not alvo or not HRP then return end
-    HRP.CFrame = CFrame.new(alvo.HumanoidRootPart.Position + Vector3.new(4,2,4), alvo.HumanoidRootPart.Position)
-    task.wait(0.2)
-    ReplicatedStorage.Remotes.Combat:FireServer(alvo, "M1")
-    task.wait(0.3)
+local function EnableHaki()
+    if not Settings.AutoHaki then return end
+    local hakiRemote = ReplicatedStorage:FindFirstChild("EnableHaki")
+    if hakiRemote then
+        hakiRemote:FireServer()
+    end
+end
+
+local ESPObjects = {}
+local function ClearESP()
+    for _, obj in pairs(ESPObjects) do
+        if obj then obj:Destroy() end
+    end
+    ESPObjects = {}
+end
+
+local function CreateESP()
+    if not Settings.ESP then 
+        ClearESP()
+        return 
+    end
+    ClearESP()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            local shouldESP = false
+            local espColor = Color3.fromRGB(255, 100, 100)
+            local espText = ""
+            if Settings.ESPType == "Fruits" and (name:find("fruit") or name:find("apple")) then
+                shouldESP = true
+                espColor = Color3.fromRGB(255, 100, 255)
+                espText = "FRUIT"
+            elseif Settings.ESPType == "Chests" and (name:find("chest") or name:find("box")) then
+                shouldESP = true
+                espColor = Color3.fromRGB(255, 215, 0)
+                espText = "CHEST"
+            elseif Settings.ESPType == "Enemies" and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
+                shouldESP = true
+                espColor = Color3.fromRGB(255, 50, 50)
+                espText = obj.Name
+            end
+            if shouldESP and obj:FindFirstChild("HumanoidRootPart") then
+                local highlight = Instance.new("Highlight")
+                highlight.Parent = obj
+                highlight.FillColor = espColor
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                table.insert(ESPObjects, highlight)
+                local billboard = Instance.new("BillboardGui")
+                billboard.Parent = obj.HumanoidRootPart
+                billboard.Size = UDim2.new(0, 100, 0, 30)
+                billboard.AlwaysOnTop = true
+                billboard.StudsOffset = Vector3.new(0, 2, 0)
+                local label = Instance.new("TextLabel")
+                label.Parent = billboard
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = espText
+                label.TextColor3 = espColor
+                label.TextScaled = true
+                label.Font = Enum.Font.GothamBold
+                table.insert(ESPObjects, billboard)
+            end
+        end
+    end
+end
+
+local FarmLoopRunning = false
+local function FindNearestEnemy()
+    local nearest = nil
+    local shortestDist = Settings.FarmRange
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name ~= Player.Name then
+            local humanoid = obj.Humanoid
+            if humanoid.Health > 0 then
+                local root = obj:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local dist = (RootPart.Position - root.Position).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        nearest = obj
+                    end
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function AttackEnemy(enemy)
+    if not enemy then return end
+    local attackRemote = ReplicatedStorage:FindFirstChild("AttackEntity")
+    if attackRemote then
+        attackRemote:FireServer(enemy)
+    end
+    local tool = Character:FindFirstChildOfClass("Tool")
+    if tool then
+        tool:Activate()
+    end
 end
 
 local function AutoFarmLoop()
-    while AutoFarmAtivado and PrimeiroMar do
-        AtualizarMissao()
-        HRP.CFrame = PosMissao task.wait(1)
-        ReplicatedStorage.Remotes.Quest:FireServer(NomeMissao) task.wait(1.2)
-        HRP.CFrame = PosInimigo task.wait(0.8)
-        local cont = 0
-        while cont < 10 and AutoFarmAtivado do
-            local inimigo = PegarInimigoMaisProximo(NomeInimigo)
-            if inimigo then
-                while inimigo.Humanoid.Health > 0 and AutoFarmAtivado do
-                    AtacarAlvo(inimigo)
-                    if LocalPlayer.Character.Humanoid.Health < 50 then
-                        ReplicatedStorage.Remotes.Ability:FireServer("Heal")
-                        task.wait(1)
-                    end
+    if FarmLoopRunning then return end
+    FarmLoopRunning = true
+    while Settings.AutoFarm do
+        if not Character or not Humanoid or Humanoid.Health <= 0 then
+            wait(2)
+            continue
+        end
+        UpdatePlayerData()
+        AutoDistributeStats()
+        if Settings.AutoHaki then EnableHaki() end
+        local enemy = FindNearestEnemy()
+        if enemy then
+            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+            if enemyRoot then
+                local dist = (RootPart.Position - enemyRoot.Position).Magnitude
+                if dist > 15 then
+                    RootPart.CFrame = enemyRoot.CFrame + Vector3.new(0, 3, 0)
+                else
+                    AttackEnemy(enemy)
                 end
-                cont += 1
-            else task.wait(0.5) end
+            end
+        end
+        if Settings.ESP then CreateESP() end
+        wait(0.1)
+    end
+    FarmLoopRunning = false
+end
+
+local BodyVelocity = nil
+local function ToggleNoClip()
+    Settings.NoClip = not Settings.NoClip
+    for _, part in ipairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not Settings.NoClip
         end
     end
 end
 
--- ==============================================
--- GUI COMPLETA (a que você pediu)
--- ==============================================
-local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "INIO_AutoFarm_1oMar"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local function ToggleFly()
+    Settings.Fly = not Settings.Fly
+    if Settings.Fly then
+        BodyVelocity = Instance.new("BodyVelocity")
+        BodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
+        BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        BodyVelocity.Parent = RootPart
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(100000, 100000, 100000)
+        bg.Parent = RootPart
+        UserInputService.InputBegan:Connect(function(input)
+            if Settings.Fly then
+                if input.KeyCode == Enum.KeyCode.Space then
+                    BodyVelocity.Velocity = Vector3.new(0, 100, 0)
+                elseif input.KeyCode == Enum.KeyCode.LeftControl then
+                    BodyVelocity.Velocity = Vector3.new(0, -100, 0)
+                elseif input.KeyCode == Enum.KeyCode.W then
+                    BodyVelocity.Velocity = RootPart.CFrame.LookVector * 100
+                elseif input.KeyCode == Enum.KeyCode.S then
+                    BodyVelocity.Velocity = -RootPart.CFrame.LookVector * 100
+                elseif input.KeyCode == Enum.KeyCode.A then
+                    BodyVelocity.Velocity = -RootPart.CFrame.RightVector * 100
+                elseif input.KeyCode == Enum.KeyCode.D then
+                    BodyVelocity.Velocity = RootPart.CFrame.RightVector * 100
+                end
+            end
+        end)
+    else
+        if BodyVelocity then BodyVelocity:Destroy() end
+    end
+end
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Name = "JanelaPrincipal"
-Main.BackgroundColor3 = Color3.fromRGB(18,22,30)
-Main.Position = UDim2.new(0.12,0,0.2,0)
-Main.Size = UDim2.new(0,300,0,380)
-local MainCorner = Instance.new("UICorner", Main) MainCorner.CornerRadius = UDim.new(0,12)
+local function AntiAFK()
+    if not Settings.AntiAFK then return end
+    local vu = game:GetService("VirtualUser")
+    game:GetService("Players").LocalPlayer.Idled:connect(function()
+        vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+        wait(1)
+        vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    end)
+end
 
--- Barra arrastável
-local Barra = Instance.new("Frame", Main)
-Barra.Background
+local Window = OrionLib:MakeWindow({
+    Name = "INIO HUB",
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "InioHub",
+    IntroEnabled = false
+})
 
+local AutoFarmTab = Window:MakeTab({
+    Name = "Auto Farm",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+AutoFarmTab:AddToggle({
+    Name = "Auto Farm",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoFarm = Value
+        if Value then
+            task.spawn(AutoFarmLoop)
+        end
+    end
+})
+
+AutoFarmTab:AddSlider({
+    Name = "Range",
+    Min = 10,
+    Max = 50,
+    Default = 25,
+    Callback = function(Value)
+        Settings.FarmRange = Value
+    end
+})
+
+local TeleportsTab = Window:MakeTab({
+    Name = "Teleports",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+TeleportsTab:AddDropdown({
+    Name = "Ilhas",
+    Default = "Deserto",
+    Options = {"Ilha Inicial", "Selva", "Deserto", "Vila Pirata", "Coliseu", "Ilha da Fonte", "Base Marine", "Ilha do Gelo", "Prisão", "Ilha do Magma", "Ilha do Céu", "Reino das Rosas", "Cake Land"},
+    Callback = function(Value)
+        Settings.SelectedIsland = Value
+    end
+})
+
+TeleportsTab:AddButton({
+    Name = "Teleportar",
+    Callback = function()
+        TeleportToIsland(Settings.SelectedIsland)
+    end
+})
+
+TeleportsTab:AddButton({
+    Name = "Melhor Ilha",
+    Callback = function()
+        local playerLevel = Player.Data.Level.Value or 0
+        local bestIsland = nil
+        for _, island in ipairs(Islands) do
+            if playerLevel >= island.Level then
+                bestIsland = island
+            end
+        end
+        if bestIsland then
+            TeleportToIsland(bestIsland.Name)
+        end
+    end
+})
+
+local CombatTab = Window:MakeTab({
+    Name = "Combate",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+CombatTab:AddToggle({
+    Name = "Auto Haki",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoHaki = Value
+    end
+})
+
+CombatTab:AddToggle({
+    Name = "No Clip",
+    Default = false,
+    Callback = function(Value)
+        ToggleNoClip()
+    end
+})
+
+CombatTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Callback = function(Value)
+        ToggleFly()
+    end
+})
+
+local UtilitiesTab = Window:MakeTab({
+    Name = "Utilidades",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+UtilitiesTab:AddToggle({
+    Name = "Auto Collect",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoCollect = Value
+    end
+})
+
+UtilitiesTab:AddToggle({
+    Name = "ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP = Value
+        if Value then
+            CreateESP()
+        else
+            ClearESP()
+        end
+    end
+})
+
+UtilitiesTab:AddDropdown({
+    Name = "ESP Type",
+    Default = "Fruits",
+    Options = {"Fruits", "Chests", "Enemies"},
+    Callback = function(Value)
+        Settings.ESPType = Value
+        if Settings.ESP then
+            CreateESP()
+        end
+    end
+})
+
+local SecurityTab = Window:MakeTab({
+    Name = "Segurança",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+SecurityTab:AddToggle({
+    Name = "Anti-AFK",
+    Default = false,
+    Callback = function(Value)
+        Settings.AntiAFK = Value
+        if Value then
+            AntiAFK()
+        end
+    end
+})
+
+local StatsTab = Window:MakeTab({
+    Name = "Stats",
+    Icon = "rbxassetid://3926305904",
+    PremiumOnly = false
+})
+
+StatsTab:AddToggle({
+    Name = "Auto Stats",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoStats = Value
+    end
+})
+
+StatsTab:AddDropdown({
+    Name = "Prioridade",
+    Default = "Melee",
+    Options = {"Melee", "Defense", "Sword", "Fruit", "Gun"},
+    Callback = function(Value)
+        Settings.StatPriority = Value
+    end
+})
+
+task.spawn(function()
+    while true do
+        UpdatePlayerData()
+        wait(5)
+    end
+end)
+
+Player.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid = Character:WaitForChild("Humanoid")
+    RootPart = Character:WaitForChild("HumanoidRootPart")
+end)
